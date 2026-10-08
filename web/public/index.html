@@ -2,108 +2,126 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#1b4332">
-  <meta name="description" content="TouchGrass — a privacy-first PWA that helps friends find reasons to go outside.">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#151515">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icon.svg">
+  <title>SideQuest — TouchGrass</title>
   <link rel="stylesheet" href="/styles.css">
-  <title>TouchGrass 🌱</title>
 </head>
 <body>
   <main class="shell">
-    <header>
-      <div>
-        <p class="eyebrow">HACKTOBERFEST · TOUCH GRASS</p>
-        <h1>TouchGrass <span>🌱</span></h1>
-        <p class="subtitle">Your screen should be the shortest part of going outside.</p>
-      </div>
-      <button id="installBtn" class="secondary hidden">Install</button>
-    </header>
-
-    <section id="setup" class="card">
-      <h2>Get started</h2>
-      <p class="muted">Create a private friend circle or join one with a code.</p>
-
-      <label>Your name
-        <input id="name" maxlength="40" placeholder="Zoro">
-      </label>
-
-      <label>Interests <span class="muted">(comma separated)</span>
-        <input id="interests" maxlength="200" placeholder="running, photography, plants">
-      </label>
-
-      <label>Friend proximity
-        <select id="radius">
-          <option value="0.5">500 m</option>
-          <option value="1" selected>1 km</option>
-          <option value="2">2 km</option>
-          <option value="5">5 km</option>
-        </select>
-      </label>
-
-      <div class="actions">
-        <button id="createBtn">Create circle</button>
-        <div class="join">
-          <input id="joinCode" maxlength="8" placeholder="INVITE CODE">
-          <button id="joinBtn" class="secondary">Join</button>
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark">↗</div>
+        <div>
+          <div class="brand-name">SIDEQUEST</div>
+          <div class="brand-line">Your screen ends here.</div>
         </div>
       </div>
-      <p id="setupStatus" class="status"></p>
+      <button id="installBtn" class="ghost hidden">Install</button>
+    </header>
+
+    <section id="setup" class="setup">
+      <div class="setup-copy">
+        <p class="kicker">MAKE A LITTLE PLANS</p>
+        <h1>Got time?<br><span>Make it count.</span></h1>
+        <p>Tell us what you like and who you want nearby. The rest is one tap.</p>
+      </div>
+
+      <div class="setup-panel">
+        <label>
+          <span>YOU</span>
+          <input id="name" maxlength="40" placeholder="Your name">
+        </label>
+
+        <label>
+          <span>YOU'RE INTO</span>
+          <input id="interests" maxlength="200" placeholder="running, photography, coffee">
+        </label>
+
+        <label>
+          <span>FRIENDS COUNT AS NEARBY</span>
+          <select id="radius">
+            <option value="0.5">500 m</option>
+            <option value="1" selected>1 km</option>
+            <option value="2">2 km</option>
+            <option value="5">5 km</option>
+          </select>
+        </label>
+
+        <div class="setup-actions">
+          <button id="createBtn" class="primary">START A CIRCLE ↗</button>
+          <div class="join-row">
+            <input id="joinCode" maxlength="8" placeholder="CIRCLE CODE">
+            <button id="joinBtn" class="ghost">JOIN</button>
+          </div>
+        </div>
+        <p id="setupStatus" class="status"></p>
+      </div>
     </section>
 
     <section id="app" class="hidden">
-      <div class="card hero">
+      <div class="hero">
         <div>
-          <p class="eyebrow">YOUR CIRCLE</p>
-          <div class="code" id="groupCode">------</div>
-          <p class="muted">Share this code with friends you actually know.</p>
+          <p class="kicker">TODAY'S SIDEQUEST</p>
+          <h2 id="hello">Ready?</h2>
+          <p id="heroLine">Pick a little time. We'll give you a reason.</p>
         </div>
-        <button id="copyCode" class="secondary">Copy</button>
+        <div class="circle-badge">
+          <span>CIRCLE</span>
+          <strong id="groupCode">------</strong>
+        </div>
       </div>
 
-      <div class="grid">
-        <section class="card">
-          <h2>Go outside</h2>
-          <p class="muted">Only share your location while you are marked free.</p>
-          <button id="freeBtn" class="big">I'm free 🌱</button>
+      <section class="quest-card">
+        <div class="quest-top">
+          <span>YOU HAVE</span>
+          <div class="duration-picker" role="group" aria-label="Time available">
+            <button class="duration" data-min="10">10</button>
+            <button class="duration active" data-min="20">20</button>
+            <button class="duration" data-min="30">30</button>
+            <button class="duration" data-min="60">60</button>
+          </div>
+          <span>MINUTES</span>
+        </div>
+
+        <div id="suggestion" class="quest-text">
+          <span class="quiet">Choose a time.<br>We'll find the reason.</span>
+        </div>
+
+        <div class="quest-actions">
+          <button id="suggestBtn" class="primary giant">GIVE ME A REASON ↗</button>
+          <button id="copyCode" class="ghost">SHARE CIRCLE CODE</button>
+        </div>
+      </section>
+
+      <section class="social-grid">
+        <div class="presence-card">
+          <div class="card-head">
+            <div>
+              <span class="kicker">YOUR PEOPLE</span>
+              <h3>Who’s out?</h3>
+            </div>
+            <span id="friendCount" class="count">0</span>
+          </div>
+
+          <button id="freeBtn" class="free-button">I'M OUTSIDE ↗</button>
           <p id="presenceStatus" class="status"></p>
-        </section>
-
-        <section class="card">
-          <h2>Friends nearby</h2>
-          <div id="friends" class="friends"><p class="muted">No nearby friends yet.</p></div>
-        </section>
-      </div>
-
-      <section class="card">
-        <h2>Give me a reason</h2>
-        <p class="muted">Uses local/open-weight AI when configured, otherwise a deterministic fallback.</p>
-        <button id="suggestBtn">Suggest something outside</button>
-        <div id="suggestion" class="suggestion hidden"></div>
-      </section>
-
-      <section class="card weather-card">
-        <div>
-          <h2>Weather nudge</h2>
-          <p class="muted">Uses your current location only when you ask for a suggestion.</p>
+          <div id="friends" class="friends">
+            <p class="empty">Nobody nearby yet.</p>
+          </div>
         </div>
-        <button id="weatherBtn" class="secondary">Check outside</button>
-        <div id="weather" class="suggestion hidden"></div>
+
+        <div class="interest-card">
+          <span class="kicker">YOUR VIBE</span>
+          <h3 id="interestTitle">Whatever you're into.</h3>
+          <p id="interestList">Add a few interests when you set up your circle.</p>
+          <div class="mini-note">No feed. No streak. No notifications.</div>
+        </div>
       </section>
 
-      <section class="card small">
-        <h2>Privacy</h2>
-        <ul>
-          <li>Coordinates are rounded before upload.</li>
-          <li>Presence expires after 10 minutes.</li>
-          <li>Exact friend coordinates are never shown.</li>
-          <li>Daily notification cap: 3.</li>
-          <li>Quiet hours: 10 PM–7 AM.</li>
-        </ul>
-      </section>
-
-      <button id="leaveBtn" class="danger">Leave circle / clear local data</button>
+      <button id="leaveBtn" class="leave">LEAVE CIRCLE / RESET</button>
     </section>
   </main>
 

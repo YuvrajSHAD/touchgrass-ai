@@ -7,6 +7,7 @@ const state = {
   interests: JSON.parse(localStorage.getItem("tg_interests") || "[]"),
   radiusKm: Number(localStorage.getItem("tg_radius") || 1),
   free: false,
+  duration: 20,
   deferredInstall: null
 };
 
@@ -17,7 +18,7 @@ function toast(message) {
   const el = $("toast");
   el.textContent = message;
   el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 3200);
+  setTimeout(() => el.classList.remove("show"), 2800);
 }
 
 function saveState() {
@@ -32,10 +33,18 @@ function showApp() {
   setup.classList.add("hidden");
   app.classList.remove("hidden");
   $("groupCode").textContent = state.code;
+  $("hello").textContent = `${state.name || "Ready"}, what's the move?`;
+  $("interestList").textContent = state.interests.length
+    ? state.interests.join("  ·  ")
+    : "Nothing saved. That's fine.";
 }
 
 function parseInterests() {
-  return $("interests").value.split(",").map(x => x.trim()).filter(Boolean).slice(0, 12);
+  return $("interests").value
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean)
+    .slice(0, 12);
 }
 
 async function json(url, options = {}) {
@@ -50,59 +59,20 @@ async function json(url, options = {}) {
 
 function getLocation() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error("Geolocation is not supported."));
+    if (!navigator.geolocation) {
+      return reject(new Error("Location isn't available on this device."));
+    }
+
     navigator.geolocation.getCurrentPosition(
       p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
       e => reject(new Error(e.message || "Location permission denied.")),
-      { enableHighAccuracy: false, maximumAge: 120000, timeout: 10000 }
+      {
+        enableHighAccuracy: false,
+        maximumAge: 120000,
+        timeout: 10000
+      }
     );
   });
-}
-
-async function updatePresence() {
-  if (!state.code || !state.userId || !state.free) return;
-  try {
-    const pos = await getLocation();
-    const result = await json("/api/presence", {
-      method: "POST",
-      body: JSON.stringify({
-        code: state.code,
-        userId: state.userId,
-        lat: pos.lat,
-        lon: pos.lon,
-        free: true,
-        radiusKm: state.radiusKm,
-        interests: state.interests
-      })
-    });
-    renderNearby(result.nearby || []);
-    $("presenceStatus").textContent = result.nearby?.length
-      ? "A friend is within your chosen radius."
-      : "You're marked free. No nearby friend yet.";
-  } catch (e) {
-    $("presenceStatus").textContent = e.message;
-  }
-}
-
-function renderNearby(nearby) {
-  const el = $("friends");
-  if (!nearby.length) {
-    el.innerHTML = '<p class="muted">No nearby friends yet.</p>';
-    return;
-  }
-  el.innerHTML = nearby.map(f =>
-    `<div class="friend"><strong>${escapeHtml(f.name)}</strong><span>${f.distanceKm} km away</span></div>`
-  ).join("");
-}
-
-async function refreshMembers() {
-  if (!state.code || !state.userId) return;
-  try {
-    const data = await json(`/api/groups/${encodeURIComponent(state.code)}/members?userId=${encodeURIComponent(state.userId)}`);
-    const onlineFree = data.members.filter(m => !m.isSelf && m.online && m.free);
-    // Do not show location unless the server has confirmed proximity.
-    if (!onlineFree.length && !state.free) renderNearby([]);
-  } catch {}
 }
 
 async function createCircle() {
@@ -119,12 +89,12 @@ async function createCircle() {
         radiusKm: state.radiusKm
       })
     });
+
     state.code = data.code;
     state.userId = data.userId;
     saveState();
     showApp();
-    await enablePushIfPossible();
-    toast("Circle created.");
+    toast("Circle ready.");
   } catch (e) {
     $("setupStatus").textContent = e.message;
   }
@@ -134,6 +104,7 @@ async function joinCircle() {
   state.name = $("name").value.trim() || "Friend";
   state.interests = parseInterests();
   state.radiusKm = Number($("radius").value);
+
   const code = $("joinCode").value.trim().toUpperCase();
 
   try {
@@ -146,52 +117,130 @@ async function joinCircle() {
         radiusKm: state.radiusKm
       })
     });
+
     state.code = data.code;
     state.userId = data.userId;
     saveState();
     showApp();
-    await enablePushIfPossible();
-    toast("Joined the circle.");
+    toast("You're in.");
   } catch (e) {
     $("setupStatus").textContent = e.message;
   }
 }
 
+function renderNearby(nearby) {
+  const el = $("friends");
+  $("friendCount").textContent = nearby.length;
+
+  if (!nearby.length) {
+    el.innerHTML = '<p class="empty">Nobody nearby yet.</p>';
+    return;
+  }
+
+  el.innerHTML = nearby.map(f => {
+    const vibe = f.interests?.length
+      ? ` · ${escapeHtml(f.interests[0])}`
+      : "";
+
+    return `
+      <div class="friend">
+        <div>
+          <strong>${escapeHtml(f.name)}</strong>
+          <span>${vibe}</span>
+        </div>
+        <small>${f.distanceKm} km</small>
+      </div>
+    `;
+  }).join("");
+}
+
+async function updatePresence() {
+  if (!state.code || !state.userId || !state.free) return;
+
+  try {
+    const pos = await getLocation();
+
+    const result = await json("/api/presence", {
+      method: "POST",
+      body: JSON.stringify({
+        code: state.code,
+        userId: state.userId,
+        lat: pos.lat,
+        lon: pos.lon,
+        free: true,
+        radiusKm: state.radiusKm,
+        interests: state.interests
+      })
+    });
+
+    renderNearby(result.nearby || []);
+
+    $("presenceStatus").textContent = result.nearby?.length
+      ? "Someone's close. You could actually meet."
+      : "You're out. Waiting for your people.";
+  } catch (e) {
+    $("presenceStatus").textContent = e.message;
+  }
+}
+
+async function refreshMembers() {
+  if (!state.code || !state.userId) return;
+
+  try {
+    const data = await json(
+      `/api/groups/${encodeURIComponent(state.code)}/members?userId=${encodeURIComponent(state.userId)}`
+    );
+
+    const onlineFree = data.members.filter(
+      m => !m.isSelf && m.online && m.free
+    );
+
+    if (!state.free) renderNearby(onlineFree.map(m => ({
+      id: m.id,
+      name: m.name,
+      distanceKm: "near",
+      interests: m.interests
+    })));
+  } catch {}
+}
+
 async function toggleFree() {
   if (!state.free) {
     try {
-      await getLocation(); // trigger permission before changing UI
+      await getLocation();
     } catch (e) {
       $("presenceStatus").textContent = e.message;
       return;
     }
   }
+
   state.free = !state.free;
-  $("freeBtn").textContent = state.free ? "I'm not free" : "I'm free 🌱";
+  $("freeBtn").textContent = state.free ? "I'M HEADING IN ↗" : "I'M OUTSIDE ↗";
+
   if (state.free) {
-    $("presenceStatus").textContent = "Sharing a rounded location while you're free.";
+    $("presenceStatus").textContent = "Finding your people…";
     await updatePresence();
   } else {
-    $("presenceStatus").textContent = "Location sharing stopped.";
+    $("presenceStatus").textContent = "You're no longer marked outside.";
+    renderNearby([]);
   }
 }
 
 async function makeSuggestion() {
   $("suggestBtn").disabled = true;
-  $("suggestion").classList.remove("hidden");
-  $("suggestion").textContent = "Thinking…";
+  $("suggestion").innerHTML = '<span class="thinking">Finding your sidequest…</span>';
+
   try {
-    let pos = null;
-    try { pos = await getLocation(); } catch {}
+    const nearby = await getNearbyNow();
     const data = await json("/api/suggestion", {
       method: "POST",
       body: JSON.stringify({
         interests: state.interests,
-        lat: pos?.lat,
-        lon: pos?.lon,
-        nearbyFriend: false
+        duration: state.duration,
+        nearbyFriend: nearby.length > 0
       })
     });
+
     $("suggestion").textContent = data.suggestion;
   } catch (e) {
     $("suggestion").textContent = e.message;
@@ -200,71 +249,63 @@ async function makeSuggestion() {
   }
 }
 
-async function checkWeather() {
-  $("weatherBtn").disabled = true;
-  $("weather").classList.remove("hidden");
-  $("weather").textContent = "Checking…";
+async function getNearbyNow() {
+  if (!state.code || !state.userId) return [];
+
   try {
     const pos = await getLocation();
-    const data = await json("/api/check-weather", {
+
+    const result = await json("/api/presence", {
       method: "POST",
-      body: JSON.stringify({ lat: pos.lat, lon: pos.lon, interests: state.interests })
+      body: JSON.stringify({
+        code: state.code,
+        userId: state.userId,
+        lat: pos.lat,
+        lon: pos.lon,
+        free: state.free,
+        radiusKm: state.radiusKm,
+        interests: state.interests
+      })
     });
-    const w = data.weather;
-    const weatherLine = w
-      ? `${Math.round(w.temperatureC)}°C · feels ${Math.round(w.feelsLikeC)}°C · ${w.cloudCover}% cloud · ${w.windKmh} km/h wind`
-      : "Weather unavailable";
-    $("weather").innerHTML = `<strong>${escapeHtml(weatherLine)}</strong><br>${escapeHtml(data.suggestion)}`;
-  } catch (e) {
-    $("weather").textContent = e.message;
-  } finally {
-    $("weatherBtn").disabled = false;
+
+    if (state.free) renderNearby(result.nearby || []);
+    return result.nearby || [];
+  } catch {
+    return [];
   }
-}
-
-async function enablePushIfPossible() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
-  const config = await json("/api/config");
-  if (!config.pushConfigured || !config.vapidPublicKey) return;
-
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(config.vapidPublicKey)
-    });
-    await json("/api/push/subscribe", {
-      method: "POST",
-      body: JSON.stringify({ userId: state.userId, subscription })
-    });
-  } catch (e) {
-    console.warn("Push setup skipped:", e);
-  }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 }
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
   }[c]));
 }
+
+document.querySelectorAll(".duration").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".duration").forEach(b => b.classList.remove("active"));
+    button.classList.add("active");
+    state.duration = Number(button.dataset.min);
+    $("suggestion").innerHTML = '<span class="quiet">Now give me a reason.</span>';
+  });
+});
 
 $("createBtn").addEventListener("click", createCircle);
 $("joinBtn").addEventListener("click", joinCircle);
 $("freeBtn").addEventListener("click", toggleFree);
 $("suggestBtn").addEventListener("click", makeSuggestion);
-$("weatherBtn").addEventListener("click", checkWeather);
 
 $("copyCode").addEventListener("click", async () => {
-  await navigator.clipboard.writeText(state.code);
-  toast("Invite code copied.");
+  try {
+    await navigator.clipboard.writeText(state.code);
+    toast("Circle code copied.");
+  } catch {
+    toast(`Circle: ${state.code}`);
+  }
 });
 
 $("leaveBtn").addEventListener("click", () => {
@@ -287,14 +328,15 @@ $("installBtn").addEventListener("click", async () => {
 });
 
 async function init() {
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(console.warn);
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(console.warn);
+  }
 
   if (state.code && state.userId) {
     $("name").value = state.name;
     $("interests").value = state.interests.join(", ");
     $("radius").value = String(state.radiusKm);
     showApp();
-    await enablePushIfPossible();
     await refreshMembers();
   }
 }

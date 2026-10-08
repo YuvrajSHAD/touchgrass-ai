@@ -1,11 +1,11 @@
 {
-  "name": "TouchGrass",
-  "short_name": "TouchGrass",
+  "name": "SideQuest \u2014 TouchGrass",
+  "short_name": "SideQuest",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f5ef",
-  "theme_color": "#1b4332",
-  "description": "A privacy-first PWA that gives you reasons to go outside.",
+  "background_color": "#f3f0e7",
+  "theme_color": "#171717",
+  "description": "A tiny local-AI PWA that gives you one reason to leave the screen.",
   "icons": [
     {
       "src": "/icon.svg",

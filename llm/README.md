@@ -1,31 +1,29 @@
-# TouchGrass LLM service
+# SideQuest local LLM
 
-This service is deliberately separate from the web app.
+The project expects a local llama.cpp-compatible server exposing:
 
-## What is what?
+`POST /v1/chat/completions`
 
-- **Gemma 3 1B GGUF** = the open-weight AI model.
-- **llama.cpp** = open-source inference engine/server.
-- **Render** = hosting infrastructure.
+The default example uses a small Qwen3 GGUF model, but any compatible open-weight instruct model can be used.
 
-The web service sends prompts to this service using an OpenAI-compatible `/v1/chat/completions` endpoint.
+## Start llama.cpp
 
-## Model file
+Use the llama.cpp command appropriate for your installed version and model.
 
-Do not commit model weights.
-
-Create:
+The web app expects:
 
 ```text
-llm/models/model.gguf
+http://localhost:8080/v1
 ```
 
-with a compatible Gemma GGUF file obtained from a model provider under its applicable license.
+and sends a short prompt containing:
 
-If the model provider requires accepting a license or authentication, perform that step yourself and download the file locally.
+- available time
+- saved interests
+- whether a friend is currently nearby
 
-Then build the container.
+The model returns exactly one outdoor side quest.
 
-## Fallback
+No weather, push notification, or cloud inference is involved.
 
-If the LLM service is unavailable, the web application automatically uses deterministic templates. The demo therefore does not depend on an LLM being available.
+If the LLM endpoint is unavailable, the web app falls back to a local deterministic suggestion.

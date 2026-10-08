@@ -1,33 +1,14 @@
-#!/bin/bash
-set -e
+#!/bin/sh
+set -eu
 
-echo "======================================"
-echo " TouchGrass AI - Gemma 3 1B"
-echo "======================================"
-
-if [ ! -f "$MODEL_PATH" ]; then
-    echo "Gemma model not found."
-    echo "Downloading Gemma 3 1B GGUF..."
-
-    curl -L \
-        --fail \
-        --retry 3 \
-        --retry-delay 5 \
-        "$MODEL_URL" \
-        -o "$MODEL_PATH"
-
-    echo "Gemma download complete."
-else
-    echo "Gemma model already exists."
+if [ ! -f "${MODEL_PATH}" ]; then
+  echo "ERROR: ${MODEL_PATH} not found."
+  echo "Place a compatible Gemma GGUF model at llm/models/model.gguf."
+  exit 1
 fi
 
-echo "Starting llama.cpp..."
-echo "Model: $MODEL_PATH"
-echo "Port: 8080"
-
-exec /app/llama.cpp/build/bin/llama-server \
-    --model "$MODEL_PATH" \
-    --host 0.0.0.0 \
-    --port 8080 \
-    --ctx-size 4096 \
-    --n-predict 256
+exec /app/llama-server \
+  -m "${MODEL_PATH}" \
+  --host 0.0.0.0 \
+  --port "${PORT:-8080}" \
+  -c 2048
