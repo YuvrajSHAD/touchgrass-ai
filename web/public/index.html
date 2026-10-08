@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1b4332">
+  <meta name="description" content="TouchGrass — a privacy-first PWA that helps friends find reasons to go outside.">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <title>TouchGrass 🌱</title>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">HACKTOBERFEST · TOUCH GRASS</p>
+        <h1>TouchGrass <span>🌱</span></h1>
+        <p class="subtitle">Your screen should be the shortest part of going outside.</p>
+      </div>
+      <button id="installBtn" class="secondary hidden">Install</button>
+    </header>
+
+    <section id="setup" class="card">
+      <h2>Get started</h2>
+      <p class="muted">Create a private friend circle or join one with a code.</p>
+
+      <label>Your name
+        <input id="name" maxlength="40" placeholder="Zoro">
+      </label>
+
+      <label>Interests <span class="muted">(comma separated)</span>
+        <input id="interests" maxlength="200" placeholder="running, photography, plants">
+      </label>
+
+      <label>Friend proximity
+        <select id="radius">
+          <option value="0.5">500 m</option>
+          <option value="1" selected>1 km</option>
+          <option value="2">2 km</option>
+          <option value="5">5 km</option>
+        </select>
+      </label>
+
+      <div class="actions">
+        <button id="createBtn">Create circle</button>
+        <div class="join">
+          <input id="joinCode" maxlength="8" placeholder="INVITE CODE">
+          <button id="joinBtn" class="secondary">Join</button>
+        </div>
+      </div>
+      <p id="setupStatus" class="status"></p>
+    </section>
+
+    <section id="app" class="hidden">
+      <div class="card hero">
+        <div>
+          <p class="eyebrow">YOUR CIRCLE</p>
+          <div class="code" id="groupCode">------</div>
+          <p class="muted">Share this code with friends you actually know.</p>
+        </div>
+        <button id="copyCode" class="secondary">Copy</button>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Go outside</h2>
+          <p class="muted">Only share your location while you are marked free.</p>
+          <button id="freeBtn" class="big">I'm free 🌱</button>
+          <p id="presenceStatus" class="status"></p>
+        </section>
+
+        <section class="card">
+          <h2>Friends nearby</h2>
+          <div id="friends" class="friends"><p class="muted">No nearby friends yet.</p></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>Give me a reason</h2>
+        <p class="muted">Uses local/open-weight AI when configured, otherwise a deterministic fallback.</p>
+        <button id="suggestBtn">Suggest something outside</button>
+        <div id="suggestion" class="suggestion hidden"></div>
+      </section>
+
+      <section class="card weather-card">
+        <div>
+          <h2>Weather nudge</h2>
+          <p class="muted">Uses your current location only when you ask for a suggestion.</p>
+        </div>
+        <button id="weatherBtn" class="secondary">Check outside</button>
+        <div id="weather" class="suggestion hidden"></div>
+      </section>
+
+      <section class="card small">
+        <h2>Privacy</h2>
+        <ul>
+          <li>Coordinates are rounded before upload.</li>
+          <li>Presence expires after 10 minutes.</li>
+          <li>Exact friend coordinates are never shown.</li>
+          <li>Daily notification cap: 3.</li>
+          <li>Quiet hours: 10 PM–7 AM.</li>
+        </ul>
+      </section>
+
+      <button id="leaveBtn" class="danger">Leave circle / clear local data</button>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

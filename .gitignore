@@ -1,0 +1,4 @@
+web/node_modules/
+web/.env
+llm/models/*.gguf
+.DS_Store

@@ -1,0 +1,26 @@
+services:
+
+  - type: web
+    name: touchgrass-web
+    runtime: node
+    rootDir: web
+    plan: starter
+
+    buildCommand: npm install
+    startCommand: npm start
+
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+
+      - key: LLM_BASE_URL
+        value: http://touchgrass-llm:8080/v1
+
+      - key: LLM_MODEL
+        value: gemma-3-1b
+
+  - type: pserv
+    name: touchgrass-llm
+    runtime: docker
+    rootDir: llm
+    plan: starter

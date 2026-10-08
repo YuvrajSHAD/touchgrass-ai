@@ -1,0 +1,17 @@
+{
+  "name": "TouchGrass",
+  "short_name": "TouchGrass",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5ef",
+  "theme_color": "#1b4332",
+  "description": "A privacy-first PWA that gives you reasons to go outside.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
