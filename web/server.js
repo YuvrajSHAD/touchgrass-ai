@@ -89,24 +89,9 @@ function templateSuggestion({ interests = [], nearbyFriend = false, duration = 2
   return `Take ${duration} minutes and walk somewhere you normally pass without noticing.`;
 }
 
-async function llmSuggestion({
-  interests = [],
-  nearbyFriend = false,
-  duration = 20
-}) {
-  const base = process.env.LLM_BASE_URL;
-  if (!base) {
-    return templateSuggestion({ interests, nearbyFriend, duration });
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    Number(process.env.LLM_TIMEOUT_MS || 15000)
-  );
-
-  const prompt = [
-    "You are SideQuest, a tiny local AI whose only job is to give a person one good reason to leave their screen.",
+function buildPrompt({ interests = [], nearbyFriend = false, duration = 20 }) {
+  return [
+    "You are Elsewhere, a tiny open-weight AI whose only job is to give a person one good reason to leave their screen.",
     "",
     `TIME AVAILABLE: ${duration} minutes`,
     `USER INTERESTS: ${interests.join(", ") || "none"}`,
@@ -126,8 +111,90 @@ async function llmSuggestion({
     "- Keep it to one or two short sentences.",
     "- Make it immediately actionable.",
     "",
-    "Return ONLY the side quest."
+    "Return ONLY the side quest. /no_think"
   ].join("\n");
+}
+
+function cleanModelText(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*/gi, "")
+    .replace(/\*\*/g, "")
+    .replace(/^Elsewhere:\s*/i, "")
+    .replace(/^SideQuest:\s*/i, "")
+    .replace(/^Outdoor Activity:\s*/i, "")
+    .trim();
+}
+
+async function hfSpaceSuggestion(prompt) {
+  const base = process.env.HF_SPACE_URL?.trim().replace(/\/$/, "");
+  if (!base) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Number(process.env.HF_TIMEOUT_MS || 30000)
+  );
+
+  const headers = { "Content-Type": "application/json" };
+  if (process.env.HF_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.HF_API_KEY}`;
+  }
+
+  try {
+    const submit = await fetch(`${base}/gradio_api/call/generate`, {
+      method: "POST",
+      signal: controller.signal,
+      headers,
+      body: JSON.stringify({ data: [prompt] })
+    });
+
+    if (!submit.ok) throw new Error(`Hugging Face HTTP ${submit.status}`);
+
+    const submitted = await submit.json();
+    const eventId = submitted?.event_id;
+    if (!eventId) throw new Error("Hugging Face returned no event_id");
+
+    const result = await fetch(
+      `${base}/gradio_api/call/generate/${encodeURIComponent(eventId)}`,
+      { signal: controller.signal, headers: { ...(process.env.HF_API_KEY ? { Authorization: `Bearer ${process.env.HF_API_KEY}` } : {}) } }
+    );
+
+    if (!result.ok) throw new Error(`Hugging Face result HTTP ${result.status}`);
+
+    const body = await result.text();
+    console.log("HF RAW RESPONSE:", body);
+    const complete = body
+      .split(/\r?\n\r?\n/)
+      .map(block => {
+        const event = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+        const data = block.match(/^data:\s*(.+)$/m)?.[1]?.trim();
+        return { event, data };
+      })
+      .reverse()
+      .find(item => item.event === "complete" && item.data);
+
+    if (!complete) throw new Error("Hugging Face returned no completed result");
+
+    const values = JSON.parse(complete.data);
+    const output = cleanModelText(Array.isArray(values) ? values[0] : values);
+    console.log("HF SUCCESS:", output);
+    return output;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function localOpenAICompatibleSuggestion(prompt) {
+  const base = process.env.LLM_BASE_URL?.trim();
+  if (!base) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Number(process.env.LLM_TIMEOUT_MS || 15000)
+  );
 
   try {
     const response = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
@@ -144,9 +211,9 @@ async function llmSuggestion({
         messages: [
           {
             role: "system",
-            content: "You are SideQuest. Output only one short, human outdoor side quest."
+            content: "You are Elsewhere. Output only one short, human outdoor side quest."
           },
-          { role: "user", content: `${prompt}\n/no_think` }
+          { role: "user", content: prompt }
         ],
         temperature: 0.85,
         top_p: 0.9,
@@ -157,37 +224,57 @@ async function llmSuggestion({
     if (!response.ok) throw new Error(`LLM HTTP ${response.status}`);
 
     const data = await response.json();
-    let text = data?.choices?.[0]?.message?.content?.trim();
-
-    if (text) {
-      text = text
-        .replace(/\*\*/g, "")
-        .replace(/^SideQuest:\s*/i, "")
-        .replace(/^Outdoor Activity:\s*/i, "")
-        .trim();
-    }
-
-    return text || templateSuggestion({ interests, nearbyFriend, duration });
-  } catch (error) {
-    console.error("LLM ERROR:", error);
-    return templateSuggestion({ interests, nearbyFriend, duration });
+    return cleanModelText(data?.choices?.[0]?.message?.content);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function llmSuggestion({
+  interests = [],
+  nearbyFriend = false,
+  duration = 20
+}) {
+  const fallback = () => templateSuggestion({ interests, nearbyFriend, duration });
+  const prompt = buildPrompt({ interests, nearbyFriend, duration });
+
+  // Public demo path: a Hugging Face ZeroGPU Space running Qwen3.
+  if (process.env.HF_SPACE_URL) {
+    try {
+      const text = await hfSpaceSuggestion(prompt);
+      if (text) return text;
+    } catch (error) {
+      console.error("HF LLM ERROR:", error);
+    }
+  }
+
+  // Local development path: llama.cpp / OpenAI-compatible endpoint.
+  if (process.env.LLM_BASE_URL) {
+    try {
+      const text = await localOpenAICompatibleSuggestion(prompt);
+      if (text) return text;
+    } catch (error) {
+      console.error("LOCAL LLM ERROR:", error);
+    }
+  }
+
+  return fallback();
 }
 
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "touchgrass-web",
-    llmConfigured: Boolean(process.env.LLM_BASE_URL),
+    llmConfigured: Boolean(process.env.HF_SPACE_URL || process.env.LLM_BASE_URL),
+    llmProvider: process.env.HF_SPACE_URL ? "huggingface-zerogpu" : (process.env.LLM_BASE_URL ? "openai-compatible-local" : "fallback"),
     groups: groups.size
   });
 });
 
 app.get("/api/config", (_req, res) => {
   res.json({
-    llmConfigured: Boolean(process.env.LLM_BASE_URL)
+    llmConfigured: Boolean(process.env.HF_SPACE_URL || process.env.LLM_BASE_URL),
+    llmProvider: process.env.HF_SPACE_URL ? "huggingface-zerogpu" : (process.env.LLM_BASE_URL ? "openai-compatible-local" : "fallback")
   });
 });
 
