@@ -2,7 +2,7 @@
 
 > Your screen ends here.
 
-SideQuest is a tiny PWA that gives you one simple reason to leave the screen.
+Elsewhere is a tiny PWA that gives you one simple reason to leave the screen.
 
 It keeps two useful pieces of the original TouchGrass idea:
 
